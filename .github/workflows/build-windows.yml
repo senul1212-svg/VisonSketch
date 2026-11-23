@@ -27,12 +27,13 @@ jobs:
           python -m pip install --upgrade pip
           pip install opencv-python mediapipe pyinstaller
           New-Item -ItemType Directory -Force models
+          Copy-Item "$env:pythonLocation\Lib\site-packages\cv2\data\haarcascade_frontalface_default.xml" "haarcascade_frontalface_default.xml"
           Invoke-WebRequest -Uri "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task" -OutFile "models\hand_landmarker.task"
 
       - name: Build executable
         shell: pwsh
         run: |
-          pyinstaller --onefile --windowed --name VisionSketch --add-data "models\hand_landmarker.task;models" webcam_face_tracker.py
+          pyinstaller --onefile --windowed --name VisionSketch --add-data "models\hand_landmarker.task;models" --add-data "haarcascade_frontalface_default.xml;." webcam_face_tracker.py
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
