@@ -43,6 +43,20 @@ def try_create_mediapipe_detector():
     if model_path is None:
         return None
 
+    try:
+        from mediapipe.tasks import python
+        from mediapipe.tasks.python import vision
+
+        options = vision.FaceDetectorOptions(
+            base_options=python.BaseOptions(model_asset_path=str(model_path)),
+            running_mode=vision.RunningMode.IMAGE,
+            min_detection_confidence=0.5,
+        )
+        return vision.FaceDetector.create_from_options(options)
+    except (ImportError, OSError, RuntimeError, ValueError) as exc:
+        print(f"MediaPipe unavailable ({exc}); using OpenCV Haar Cascade.")
+        return None
+
 
 def try_create_hand_detector():
     """Create a MediaPipe hand detector when the optional hand model exists."""
@@ -67,21 +81,6 @@ def try_create_hand_detector():
     except (ImportError, OSError, RuntimeError, ValueError) as exc:
         print(f"Hand detection unavailable ({exc}); continuing without it.")
         return None
-
-    try:
-        from mediapipe.tasks import python
-        from mediapipe.tasks.python import vision
-
-        options = vision.FaceDetectorOptions(
-            base_options=python.BaseOptions(model_asset_path=str(model_path)),
-            running_mode=vision.RunningMode.IMAGE,
-            min_detection_confidence=0.5,
-        )
-        return vision.FaceDetector.create_from_options(options)
-    except (ImportError, OSError, RuntimeError, ValueError) as exc:
-        print(f"MediaPipe unavailable ({exc}); using OpenCV Haar Cascade.")
-        return None
-
 
 def detect_with_mediapipe(detector, frame) -> Optional[Tuple[int, int, int, int]]:
     """Return (x, y, width, height) for the highest-confidence face."""
@@ -278,7 +277,9 @@ def draw_overlay(frame, face_box, fps: float, detector_name: str) -> None:
 
 
 def main() -> int:
-    cascade_path = Path(cv2.data.haarcascades) / "haarcascade_frontalface_default.xml"
+    bundled_cascade = application_dir() / "haarcascade_frontalface_default.xml"
+    installed_cascade = Path(cv2.data.haarcascades) / "haarcascade_frontalface_default.xml"
+    cascade_path = bundled_cascade if bundled_cascade.is_file() else installed_cascade
     cascade = cv2.CascadeClassifier(str(cascade_path))
     if cascade.empty():
         raise RuntimeError(f"Could not load OpenCV cascade: {cascade_path}")
